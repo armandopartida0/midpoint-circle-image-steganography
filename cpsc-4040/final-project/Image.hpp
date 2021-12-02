@@ -16,11 +16,6 @@ struct pixel
     unsigned char r, g, b, a;
 };
 
-struct pixelHSV
-{
-    unsigned short h, s, v, a;
-};
-
 class Image
 {
 public:
@@ -97,42 +92,9 @@ public:
     void setDimens(unsigned int w, unsigned int h);
 
     /**
-     * Invert image's pixel color data
-     * 
-     * */
-    void invertPixels();
-
-    /**
      * Flip image vertically
      * */
     void flipVertical();
-
-    /**
-     * Convert RGB color pixel to HSV and store in
-     * reference variables
-     * @param p Input RGB pixel
-     * @param h Reference to hue variable
-     * @param s Reference to saturation variable
-     * @param v Reference to value variable
-     * */
-    void RGBToHSV(pixel p, double &h, double &s, double &v);
-
-    /**
-     * Chroma-keys image based on given parameters. Pixel alpha data is changed.
-     * @param minH Minimum hue, inclusive
-     * @param maxH Maximum hue, inclusive
-     * @param minS Minimum saturation, inclusive
-     * @param maxS Maximum saturation, inclusive
-     * @param minV Minimum value, inclusive
-     * @param maxV Maximum value, inclusive
-     * */
-    void chromaKeyImage(double minH, double maxH, double minS, double maxS, double minV, double maxV);
-
-    /**
-     * Applies kernel pass over pixel data
-     * @param kernel kernel filter matrix
-     * */
-    void convolute(std::vector<std::vector<float>> kernel);
 
 private:
     std::vector<pixel> pixels{}; // Pixel data, RGBA
