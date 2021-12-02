@@ -11,11 +11,6 @@
 #include <iostream>
 #include <vector>
 
-struct pixel
-{
-    unsigned char r, g, b, a;
-};
-
 class Image
 {
 public:
@@ -24,43 +19,26 @@ public:
     /**
      * Creates black image using specified dimens and channels
      * */
-    Image(int channels, int xRes, int yRes);
+    Image(int channels, int w, int h);
     
     ~Image();
 
     /**
-     * Loads given image pixel data. Image pixel data will be converted 
-     * to RGBA format. If original image did not have an alpha value, 
-     * then a dummy alpha value is used (255)
+     * Loads given image pixel data.
      * 
      * @param p Image pixel data
-     * @param channels Number of color channels image pixel
-     * data contains
+     * @param channels Number of channels that data contains
      * @param xRes image resolution on x-axis
      * @param yRes image resolution on y-axis
      * */
     void loadPixelData(std::vector<unsigned char> p, int channels, int xRes, int yRes);
 
     /**
-     * Returns raw pixel data in unsigned char* vector. RGBA format, 4 channels
+     * Returns reference to pixel data
      * 
      * @return Continous memory array of pixels
      * */
-    std::vector<unsigned char> getRawPixels();
-
-    /**
-     * Loads given pixel data vector. Vector has pixels stored as pixel struct.
-     * 
-     * @param p Image pixel data
-     * */
-    void loadPixels(std::vector<pixel> p);
-
-    /**
-     * Returns pixel data in pixels struct format.
-     * 
-     * @return Vector of pixel structs
-     * */
-    std::vector<pixel> getPixels();
+    std::vector<unsigned char>& getPixels();
 
     /**
      * Return number of channels in original image
@@ -83,22 +61,9 @@ public:
      * */
     unsigned int getHeight();
 
-    /**
-     * Set the dimensions of the image
-     * 
-     * @param w width
-     * @param h height
-     * */
-    void setDimens(unsigned int w, unsigned int h);
-
-    /**
-     * Flip image vertically
-     * */
-    void flipVertical();
-
 private:
-    std::vector<pixel> pixels{}; // Pixel data, RGBA
+    std::vector<unsigned char> pixels{}; // Pixel data in original image
     unsigned int numOfChannels{}; // Number of channels in original image
-    unsigned int width{};
-    unsigned int height{};
+    unsigned int width{}; // Width of original image
+    unsigned int height{}; // Height of original image
 };
