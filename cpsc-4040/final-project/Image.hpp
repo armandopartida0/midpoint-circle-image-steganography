@@ -44,21 +44,21 @@ public:
      * 
      * @return number of channels
      * */
-    unsigned int getNumOfChannels();
+    unsigned int getNumOfChannels() const;
 
     /**
      * Return width of image
      * 
      * @return width of image
      * */
-    unsigned int getWidth();
+    unsigned int getWidth() const;
 
     /**
      * Return height of image
      * 
      * @return height of image
      * */
-    unsigned int getHeight();
+    unsigned int getHeight() const;
 
 private:
     std::vector<unsigned char> pixels{}; // Pixel data in original image

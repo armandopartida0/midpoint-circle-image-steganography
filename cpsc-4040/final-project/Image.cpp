@@ -32,17 +32,17 @@ std::vector<unsigned char>& Image::getPixels()
     return pixels;
 }
 
-unsigned int Image::getNumOfChannels()
+unsigned int Image::getNumOfChannels() const
 {
     return numOfChannels;
 }
 
-unsigned int Image::getWidth()
+unsigned int Image::getWidth() const
 {
     return width;
 }
 
-unsigned int Image::getHeight()
+unsigned int Image::getHeight() const
 {
     return height;
 }
