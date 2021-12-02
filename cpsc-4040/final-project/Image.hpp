@@ -1,6 +1,5 @@
 /**
  * Image class to store pixel data and other useful functions.
- * Each image will be stored in the RGBA format.
  *
  * Name: Armando Partida-Sanabia
  * Class: CPSC 4040
