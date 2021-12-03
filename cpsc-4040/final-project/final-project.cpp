@@ -1,6 +1,7 @@
 #include <iostream>
 #include <memory>
 #include <cmath>
+#include <bitset>
 #include <OpenImageIO/imageio.h>
 
 #include "Image.hpp"
@@ -96,7 +97,10 @@ vector<point> findMidpointPixels(const unique_ptr<Image> &img)
  */
 void encode(unique_ptr<Image> &img, vector<unsigned char> &data)
 {
-    // TODO: Find coords of pixels that lie on circumference of circle
+    // Find coords of pixels that lie on circumference of circle
+    vector<point> coords = findMidpointPixels(img);
+
+
     // TODO: Modify LSBs on each pixel to store data buffer bits
 }
 
@@ -124,6 +128,14 @@ int main(int argc, char** argv)
     }
 
     cout << "Number of pixels available for data: " << points.size() << '\n';
+
+    // Test encode simple letters
+    vector<unsigned char> data{'H', 'I'};
+
+    encode(img, data);
+
+    // Print out result image
+    writeImage(img, argv[3]);
 
     return 0;
 }
