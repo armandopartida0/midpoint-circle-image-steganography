@@ -57,6 +57,12 @@ void writeImage(const unique_ptr<Image> &img, string filename)
     out->close ();
 }
 
+/**
+ * Finds points on the circle cirumference found in image
+ * 
+ * @param img Image used to calculate circle on it
+ * @return vector<point> Vector of points on circle cirumference
+ */
 vector<point> findMidpointPixels(const unique_ptr<Image> &img)
 {
     // Declare vector to hold all of our coords
