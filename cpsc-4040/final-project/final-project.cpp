@@ -1,11 +1,19 @@
 #include <iostream>
 #include <memory>
+#include <cmath>
 #include <OpenImageIO/imageio.h>
 
 #include "Image.hpp"
 
 using namespace std;
 using namespace OIIO;
+
+constexpr double PI = 3.14159265358979323846;
+
+struct point
+{
+    unsigned int x, y;
+};
 
 /**
  * Loads image into memory
@@ -49,6 +57,43 @@ void writeImage(const unique_ptr<Image> &img, string filename)
     out->close ();
 }
 
+vector<point> findMidpointPixels(const unique_ptr<Image> &img)
+{
+    // Declare vector to hold all of our coords
+    vector<point> pixelPoints{};
+
+    // Find center of image
+    point center {img->getWidth() / 2, img->getHeight() / 2};
+    
+    // Find our radius, depends on smaller dimension
+    int radius = (img->getWidth() < img->getHeight() 
+        ? img->getWidth() : img->getHeight()) / 2;
+    
+    // Find points on circumference using formula
+    for(int i = 0; i <= 360; ++i)
+    {
+        point temp;
+        temp.x = center.x + static_cast<unsigned int>((radius * cos((i * PI) / 180)));
+        temp.y = center.y + static_cast<unsigned int>((radius * sin((i * PI) / 180)));
+        pixelPoints.push_back(temp);
+    }
+
+    return pixelPoints;
+}
+
+/**
+ * Encodes bits from data buffer into cover image using 
+ * midpoint circle approach
+ * 
+ * @param img Cover image
+ * @param data Data buffer
+ */
+void encode(unique_ptr<Image> &img, vector<unsigned char> &data)
+{
+    // TODO: Find coords of pixels that lie on circumference of circle
+    // TODO: Modify LSBs on each pixel to store data buffer bits
+}
+
 int main(int argc, char** argv)
 {
     // Check args
@@ -60,9 +105,19 @@ int main(int argc, char** argv)
     }
 
     // DEBUG: Test reading and writing image
-    /*auto img = make_unique<Image>();
+    auto img = make_unique<Image>();
     readImage(img, argv[2]);
-    writeImage(img, argv[3]);*/
+    //writeImage(img, argv[3]);
+
+    // DEBUG: Test midpoints and print them out
+    vector<point> points = findMidpointPixels(img);
+
+    for(int i = 0; i < points.size(); ++i)
+    {
+        cout << points.at(i).x << " " << points.at(i).y << '\n';
+    }
+
+    cout << "Number of pixels available for data: " << points.size() << '\n';
 
     return 0;
 }
