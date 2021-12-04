@@ -1,7 +1,7 @@
 #include <iostream>
 #include <memory>
-#include <cmath>
 #include <bitset>
+#include <fstream>
 #include <OpenImageIO/imageio.h>
 
 #include "Image.hpp"
@@ -9,12 +9,26 @@
 using namespace std;
 using namespace OIIO;
 
-constexpr double PI = 3.14159265358979323846;
-
 struct point
 {
     unsigned int x, y;
 };
+
+vector<unsigned char> readFile(string filename)
+{
+    ifstream input(filename, ios::binary);
+
+    vector<unsigned char> data(istreambuf_iterator<char>(input), {});
+
+    return data;
+}
+
+void writeFile(vector<unsigned char> &data, string filename)
+{
+    ofstream output(filename, ios::binary);
+
+    output.write((char*)(&data[0]), data.size() * sizeof(unsigned char));
+}
 
 /**
  * Loads image into memory
@@ -118,13 +132,9 @@ void placeBitInPixel(int bit, point coordinate, unique_ptr<Image> &img)
 {
     unsigned char p = img->getPixels()[coordinate.y * img->getWidth() + coordinate.x];
 
-    cout << "Before placing data: " << bitset<8>(p).to_string() << '\n';
-
     p = (p & ~1) | bit;
 
     img->getPixels()[coordinate.y * img->getWidth() + coordinate.x] = p;
-
-    cout << "After placing data: " << bitset<8>(p).to_string() << "\n\n";
 }
 
 /**
@@ -187,47 +197,48 @@ vector<unsigned char> decode(unique_ptr<Image> &img)
 int main(int argc, char** argv)
 {
     // Check args
-    if(argc != 4)
+    if((argc != 4) && (argc != 3))
     {
         cout << "usage (to encode): program -e <cover-image> <file>\n";
-        cout << "usage (to decode): program -d <image> <output-file>\n";
+        cout << "usage (to decode): program -d <image>\n";
         exit(1);
     }
 
-    // DEBUG: Test reading and writing image
-    auto img = make_unique<Image>();
-    readImage(img, argv[2]);
-    //writeImage(img, argv[3]);
-
-    // DEBUG: Test midpoints and print them out
-    vector<point> points = findMidpointPixels(img);
-
-    for(int i = 0; i < points.size(); ++i)
+    string argv1 = argv[1];
+    if(argv1 == "-e")
     {
-        cout << points.at(i).x << " " << points.at(i).y << '\n';
+        // Read in cover image
+        auto img = make_unique<Image>();
+        readImage(img, argv[2]);
+
+        // Get points
+        vector<point> points = findMidpointPixels(img);
+
+        cout << "Number of pixels available for data: " << points.size() << '\n';
+
+        // Read in file to encode
+        vector<unsigned char> data = readFile(argv[3]);
+        encode(img, data);
+
+        writeImage(img, "encoded-image.png");
     }
+    else if(argv1 == "-d")
+    {
+        // Read in cover image
+        auto img = make_unique<Image>();
+        readImage(img, argv[2]);
 
-    cout << "Number of pixels available for data: " << points.size() << '\n';
+        // Get points
+        vector<point> points = findMidpointPixels(img);
 
-    // Test encode simple letters
-    vector<unsigned char> data{'H', 'I', 'S', 'P', 'Y'};
-
-    encode(img, data);
-
-    // Print out result image
-    writeImage(img, argv[3]);
-
-    // TEST
-    auto testImg = make_unique<Image>();
-    readImage(testImg, argv[3]);
-
-    vector<unsigned char> decoded = decode(testImg);
-
-    cout << "First byte: " << decoded.at(0) << '\n';
-    cout << "Second byte: " << decoded.at(1) << '\n';
-    cout << "Third byte: " << decoded.at(2) << '\n';
-    cout << "Fourth byte: " << decoded.at(3) << '\n';
-    cout << "Fith byte: " << decoded.at(4) << '\n';
+        // Get decoded data and write to file
+        vector<unsigned char> decodedData = decode(img);
+        writeFile(decodedData, "decoded-file");
+    }
+    else
+    {
+        cout << "Invalid option " << argv1 << '\n';
+    }
 
     return 0;
 }
