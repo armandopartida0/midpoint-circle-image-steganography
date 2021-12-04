@@ -75,17 +75,56 @@ vector<point> findMidpointPixels(const unique_ptr<Image> &img)
     // Find our radius, depends on smaller dimension
     int radius = (img->getWidth() < img->getHeight() 
         ? img->getWidth() : img->getHeight()) / 2;
-    
-    // Find points on circumference using formula
-    for(int i = 0; i <= 360; ++i)
+
+    radius -= 1; // Make sure the circle stays within image
+
+    // Midpoint Circle algorithm
+    int x = 0;
+    int y = radius;
+
+    int p = (5 / 4) - radius;
+
+    while( x <= y)
     {
-        point temp;
-        temp.x = center.x + static_cast<unsigned int>((radius * cos((i * PI) / 180)));
-        temp.y = center.y + static_cast<unsigned int>((radius * sin((i * PI) / 180)));
-        pixelPoints.push_back(temp);
+        if(p < 0)
+        {
+            p += (4 * x) + 6;
+        }
+        else
+        {
+            p += (2 * (x-y)) + 5;
+            y--;
+        }
+
+        x++;
+
+        pixelPoints.push_back({center.x + x, center.y + y});
+        pixelPoints.push_back({center.x - x, center.y + y});
+        pixelPoints.push_back({center.x + x, center.y - y});
+        pixelPoints.push_back({center.x - x, center.y - y});
     }
 
     return pixelPoints;
+}
+
+/**
+ * Places bit into LSB of pixel
+ * 
+ * @param bit Bit to be placed
+ * @param coordinate Coordinate of pixel
+ * @param img Image that contains pixel
+ */
+void placeBitInPixel(int bit, point coordinate, unique_ptr<Image> &img)
+{
+    unsigned char p = img->getPixels()[coordinate.y * img->getWidth() + coordinate.x];
+
+    cout << "Before placing data: " << bitset<8>(p).to_string() << '\n';
+
+    p = (p & ~1) | bit;
+
+    img->getPixels()[coordinate.y * img->getWidth() + coordinate.x] = p;
+
+    cout << "After placing data: " << bitset<8>(p).to_string() << "\n\n";
 }
 
 /**
@@ -99,9 +138,50 @@ void encode(unique_ptr<Image> &img, vector<unsigned char> &data)
 {
     // Find coords of pixels that lie on circumference of circle
     vector<point> coords = findMidpointPixels(img);
+    int coordsIdx = 0;
 
+    // Modify LSBs on each coords pixel to store data buffer bits
+    for(int dataIdx = 0; dataIdx < data.size(); ++dataIdx)
+    {
+        bitset<8> bits(data.at(dataIdx));
 
-    // TODO: Modify LSBs on each pixel to store data buffer bits
+        for(int bitsIdx = 0; bitsIdx < bits.size(); ++bitsIdx)
+        {
+            placeBitInPixel(bits[bitsIdx], coords.at(coordsIdx), img);
+            coordsIdx++;
+        }
+    }
+}
+
+vector<unsigned char> decode(unique_ptr<Image> &img)
+{
+    // Vector to store data we get from image
+    vector<unsigned char> data{};
+
+    // Find coords of pixels that lie on circumference of circle
+    vector<point> coords = findMidpointPixels(img);
+
+    int bitsIdx = 0;
+    bitset<8> bits{};
+
+    for(int coordsIdx = 0; coordsIdx < coords.size(); ++coordsIdx)
+    {
+        if(bitsIdx < 8)
+        {
+            bits[bitsIdx] = img->getPixels()[coords.at(coordsIdx).y * img->getWidth() + coords.at(coordsIdx).x] & 1;
+            bitsIdx++;
+        }
+        else
+        {
+            bitsIdx = 0;
+            data.push_back(static_cast<unsigned char>(bits.to_ulong()));
+
+            // Don't skip a bit
+            coordsIdx--;
+        }
+    }
+
+    return data;
 }
 
 int main(int argc, char** argv)
@@ -130,12 +210,24 @@ int main(int argc, char** argv)
     cout << "Number of pixels available for data: " << points.size() << '\n';
 
     // Test encode simple letters
-    vector<unsigned char> data{'H', 'I'};
+    vector<unsigned char> data{'H', 'I', 'S', 'P', 'Y'};
 
     encode(img, data);
 
     // Print out result image
     writeImage(img, argv[3]);
+
+    // TEST
+    auto testImg = make_unique<Image>();
+    readImage(testImg, argv[3]);
+
+    vector<unsigned char> decoded = decode(testImg);
+
+    cout << "First byte: " << decoded.at(0) << '\n';
+    cout << "Second byte: " << decoded.at(1) << '\n';
+    cout << "Third byte: " << decoded.at(2) << '\n';
+    cout << "Fourth byte: " << decoded.at(3) << '\n';
+    cout << "Fith byte: " << decoded.at(4) << '\n';
 
     return 0;
 }
