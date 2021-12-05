@@ -9,25 +9,37 @@
 using namespace std;
 using namespace OIIO;
 
+constexpr int CIRCLE_DISTANCE = 2;
+
 struct point
 {
     unsigned int x, y;
 };
 
-vector<unsigned char> readFile(string filename)
+vector<char> readFile(string filename)
 {
+    streampos fileSize;
     ifstream input(filename, ios::binary);
 
-    vector<unsigned char> data(istreambuf_iterator<char>(input), {});
+    input.seekg(0, ios::end);
+    fileSize = input.tellg();
+    input.seekg(0, ios::beg);
+
+    vector<char> data(fileSize);
+    input.read((char*) &data[0], fileSize);
+
+    input.close();
 
     return data;
 }
 
-void writeFile(vector<unsigned char> &data, string filename)
+void writeFile(vector<char> &data, string filename)
 {
     ofstream output(filename, ios::binary);
 
-    output.write((char*)(&data[0]), data.size() * sizeof(unsigned char));
+    output.write((char*) &data[0], data.size() * sizeof(char));
+
+    output.close();
 }
 
 /**
@@ -72,6 +84,35 @@ void writeImage(const unique_ptr<Image> &img, string filename)
     out->close ();
 }
 
+void midPointAlgorithm(vector<point> &points, unsigned int radius, point center)
+{
+    // Midpoint Circle algorithm
+    int x = 0;
+    int y = radius;
+
+    int p = 1 - radius;
+
+    while( x <= y)
+    {
+        if(p < 0)
+        {
+            p += (2 * x) + 3;
+        }
+        else
+        {
+            p += (2 * (x-y)) + 5;
+            y--;
+        }
+
+        x++;
+
+        points.push_back({center.x + x, center.y + y});
+        points.push_back({center.x - x, center.y + y});
+        points.push_back({center.x + x, center.y - y});
+        points.push_back({center.x - x, center.y - y});
+    }
+}
+
 /**
  * Finds points on the circle cirumference found in image
  * 
@@ -92,30 +133,23 @@ vector<point> findMidpointPixels(const unique_ptr<Image> &img)
 
     radius -= 1; // Make sure the circle stays within image
 
-    // Midpoint Circle algorithm
-    int x = 0;
-    int y = radius;
-
-    int p = (5 / 4) - radius;
-
-    while( x <= y)
+    // Lets do concentric circles, for more storage
+    int maxNumOfCircles = 0;
+    int tempRadius = radius;
+    while(tempRadius > 0)
     {
-        if(p < 0)
-        {
-            p += (4 * x) + 6;
-        }
-        else
-        {
-            p += (2 * (x-y)) + 5;
-            y--;
-        }
+        maxNumOfCircles++;
+        tempRadius -= CIRCLE_DISTANCE;
+    }
 
-        x++;
+    //cout << "Max number of circles available: " << maxNumOfCircles << '\n';
 
-        pixelPoints.push_back({center.x + x, center.y + y});
-        pixelPoints.push_back({center.x - x, center.y + y});
-        pixelPoints.push_back({center.x + x, center.y - y});
-        pixelPoints.push_back({center.x - x, center.y - y});
+    for(int i = 0; i < maxNumOfCircles; ++i)
+    {
+        midPointAlgorithm(pixelPoints, radius, center);
+
+        // Keep circles distance
+        radius -= CIRCLE_DISTANCE;
     }
 
     return pixelPoints;
@@ -144,7 +178,7 @@ void placeBitInPixel(int bit, point coordinate, unique_ptr<Image> &img)
  * @param img Cover image
  * @param data Data buffer
  */
-void encode(unique_ptr<Image> &img, vector<unsigned char> &data)
+void encode(unique_ptr<Image> &img, vector<char> &data)
 {
     // Find coords of pixels that lie on circumference of circle
     vector<point> coords = findMidpointPixels(img);
@@ -174,10 +208,10 @@ void encode(unique_ptr<Image> &img, vector<unsigned char> &data)
     }
 }
 
-vector<unsigned char> decode(unique_ptr<Image> &img)
+vector<char> decode(unique_ptr<Image> &img)
 {
     // Vector to store data we get from image
-    vector<unsigned char> data{};
+    vector<char> data{};
 
     // Find coords of pixels that lie on circumference of circle
     vector<point> coords = findMidpointPixels(img);
@@ -204,7 +238,7 @@ vector<unsigned char> decode(unique_ptr<Image> &img)
         else
         {
             bitsIdx = 0;
-            data.push_back(static_cast<unsigned char>(bits.to_ulong()));
+            data.push_back(static_cast<char>(bits.to_ulong()));
 
             // Don't skip a bit
             coordsIdx--;
@@ -234,10 +268,10 @@ int main(int argc, char** argv)
         // Get points
         vector<point> points = findMidpointPixels(img);
 
-        cout << "Number of pixels available for data: " << points.size() << '\n';
+        //cout << "Number of pixels available for data: " << points.size() << '\n';
 
         // Read in file to encode
-        vector<unsigned char> data = readFile(argv[3]);
+        vector<char> data = readFile(argv[3]);
         encode(img, data);
 
         writeImage(img, "encoded-image.png");
@@ -248,11 +282,8 @@ int main(int argc, char** argv)
         auto img = make_unique<Image>();
         readImage(img, argv[2]);
 
-        // Get points
-        vector<point> points = findMidpointPixels(img);
-
         // Get decoded data and write to file
-        vector<unsigned char> decodedData = decode(img);
+        vector<char> decodedData = decode(img);
         writeFile(decodedData, "decoded-file");
     }
     else
