@@ -148,9 +148,10 @@ void encode(unique_ptr<Image> &img, vector<unsigned char> &data)
 {
     // Find coords of pixels that lie on circumference of circle
     vector<point> coords = findMidpointPixels(img);
-    int coordsIdx = 0;
 
     // Modify LSBs on each coords pixel to store data buffer bits
+    // Since we used some bits already, start at the correct pixel
+    int coordsIdx = 16;
     for(int dataIdx = 0; dataIdx < data.size(); ++dataIdx)
     {
         bitset<8> bits(data.at(dataIdx));
@@ -160,6 +161,16 @@ void encode(unique_ptr<Image> &img, vector<unsigned char> &data)
             placeBitInPixel(bits[bitsIdx], coords.at(coordsIdx), img);
             coordsIdx++;
         }
+    }
+
+    // We have to use the first 16 bits to store how many coords used
+    int coordsUsed = coordsIdx + 1;
+    int coordsUsedIdx = 0;
+    bitset<16> bits(coordsUsed);
+    for(int bitsIdx = 0; bitsIdx < bits.size(); ++bitsIdx)
+    {
+        placeBitInPixel(bits[bitsIdx], coords.at(coordsUsedIdx), img);
+        coordsUsedIdx++;
     }
 }
 
@@ -171,10 +182,19 @@ vector<unsigned char> decode(unique_ptr<Image> &img)
     // Find coords of pixels that lie on circumference of circle
     vector<point> coords = findMidpointPixels(img);
 
+    // We have to use check the first 16 bits to see how many coordinates were used
+    bitset<16> coordsUsed_b{};
+    for(int i = 0; i < 16; ++i)
+    {
+        coordsUsed_b[i] = img->getPixels()[coords.at(i).y * img->getWidth() + coords.at(i).x] & 1;
+    }
+
+    int numCoordsUsed = static_cast<int>(coordsUsed_b.to_ulong());
+
+    // Start coords at 16, since 0-15 are used to hold data size
     int bitsIdx = 0;
     bitset<8> bits{};
-
-    for(int coordsIdx = 0; coordsIdx < coords.size(); ++coordsIdx)
+    for(int coordsIdx = 16; coordsIdx < numCoordsUsed; ++coordsIdx)
     {
         if(bitsIdx < 8)
         {
