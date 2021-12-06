@@ -11,22 +11,20 @@ To decode a file:
 
 Working examples:
 (Hiding ASCII art file)
-./final-project -e images/high-res.jpg hidden-message
+./final-project -e images/high-res.jpg text-files/hidden-message
 ./final-project -d encoded-image.png
 
-(Hiding tiny image)
-./final-project -e images/high-res.jpg images/tiny.png
+(Hiding image)
+./final-project -e cover-image.jpg images/droplets.jpg
 ./final-project -d encoded-image.png
-rename decoded-file to decoded-file.png
+rename decoded-file to decoded-file.jpg
 
-
-Bugs:
--Some larger files like higher res images may not be decoded correctly.
--There is no checking to see if a data file can fit within the image. If vector goes out of range, then
-data was too big
--File extensions must be manually added for the decoded file
+(Hiding audio file)
+./final-project -e cover-image.jpg audio/sample-3s.mp3
+./final-project -d encoded-image.png
+rename decoded-file to decoded-file.mp3
 
 Tips:
 -High res images will have more space for embedding data
--Text files work best as hidden data
 -Compressing the encoded-image.png will break the embedded data
+-File extensions must be manually added for the decoded file

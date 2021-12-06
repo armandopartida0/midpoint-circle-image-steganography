@@ -2,6 +2,7 @@
 #include <memory>
 #include <bitset>
 #include <fstream>
+#include <cstdint>
 #include <OpenImageIO/imageio.h>
 
 #include "Image.hpp"
@@ -16,7 +17,7 @@ struct point
     unsigned int x, y;
 };
 
-vector<char> readFile(string filename)
+vector<uint8_t> readFile(string filename)
 {
     streampos fileSize;
     ifstream input(filename, ios::binary);
@@ -25,19 +26,19 @@ vector<char> readFile(string filename)
     fileSize = input.tellg();
     input.seekg(0, ios::beg);
 
-    vector<char> data(fileSize);
-    input.read((char*) &data[0], fileSize);
+    vector<uint8_t> data(fileSize);
+    input.read(reinterpret_cast<char*>(&data[0]), fileSize);
 
     input.close();
 
     return data;
 }
 
-void writeFile(vector<char> &data, string filename)
+void writeFile(vector<uint8_t> &data, string filename)
 {
     ofstream output(filename, ios::binary);
 
-    output.write((char*) &data[0], data.size() * sizeof(char));
+    output.write(reinterpret_cast<const char*>(&data[0]), data.size() * sizeof(uint8_t));
 
     output.close();
 }
@@ -144,7 +145,7 @@ vector<point> findMidpointPixels(const unique_ptr<Image> &img)
 
     //cout << "Max number of circles available: " << maxNumOfCircles << '\n';
 
-    for(int i = 0; i < maxNumOfCircles; ++i)
+    for(size_t i = 0; i < maxNumOfCircles; ++i)
     {
         midPointAlgorithm(pixelPoints, radius, center);
 
@@ -178,59 +179,68 @@ void placeBitInPixel(int bit, point coordinate, unique_ptr<Image> &img)
  * @param img Cover image
  * @param data Data buffer
  */
-void encode(unique_ptr<Image> &img, vector<char> &data)
+void encode(unique_ptr<Image> &img, vector<uint8_t> &data)
 {
     // Find coords of pixels that lie on circumference of circle
     vector<point> coords = findMidpointPixels(img);
 
+    // Check if we have enough pixels to store data
+    if(data.size() > ((coords.size() - 32) / 8))
+    {
+        cout << "Not enough pixels to store data.\n";
+        cout << "Data size (in bytes): " << data.size() << '\n';
+        cout << "Available data in picture (in bytes): " << ((coords.size() - 32) / 8) << '\n';
+        exit(1);
+    }
+
     // Modify LSBs on each coords pixel to store data buffer bits
     // Since we used some bits already, start at the correct pixel
-    int coordsIdx = 16;
-    for(int dataIdx = 0; dataIdx < data.size(); ++dataIdx)
+    size_t coordsIdx = 32;
+    for(size_t dataIdx = 0; dataIdx < data.size(); ++dataIdx)
     {
         bitset<8> bits(data.at(dataIdx));
 
-        for(int bitsIdx = 0; bitsIdx < bits.size(); ++bitsIdx)
+        for(size_t bitsIdx = 0; bitsIdx < bits.size(); ++bitsIdx)
         {
             placeBitInPixel(bits[bitsIdx], coords.at(coordsIdx), img);
             coordsIdx++;
         }
     }
 
-    // We have to use the first 16 bits to store how many coords used
-    int coordsUsed = coordsIdx + 1;
-    int coordsUsedIdx = 0;
-    bitset<16> bits(coordsUsed);
-    for(int bitsIdx = 0; bitsIdx < bits.size(); ++bitsIdx)
+    // We have to use the first 32 bits to store how many coords used
+    uint32_t coordsUsed = static_cast<uint32_t>(coordsIdx + 1);
+    size_t coordsUsedIdx = 0;
+    bitset<32> bits(coordsUsed);
+    for(size_t bitsIdx = 0; bitsIdx < bits.size(); ++bitsIdx)
     {
         placeBitInPixel(bits[bitsIdx], coords.at(coordsUsedIdx), img);
         coordsUsedIdx++;
     }
 }
 
-vector<char> decode(unique_ptr<Image> &img)
+vector<uint8_t> decode(unique_ptr<Image> &img)
 {
     // Vector to store data we get from image
-    vector<char> data{};
+    vector<uint8_t> data{};
 
     // Find coords of pixels that lie on circumference of circle
     vector<point> coords = findMidpointPixels(img);
 
     // We have to use check the first 16 bits to see how many coordinates were used
-    bitset<16> coordsUsed_b{};
-    for(int i = 0; i < 16; ++i)
+    bitset<32> coordsUsed_b{};
+    for(size_t i = 0; i < coordsUsed_b.size(); ++i)
     {
         coordsUsed_b[i] = img->getPixels()[coords.at(i).y * img->getWidth() + coords.at(i).x] & 1;
     }
 
-    int numCoordsUsed = static_cast<int>(coordsUsed_b.to_ulong());
+    uint32_t numCoordsUsed = static_cast<uint32_t>(coordsUsed_b.to_ulong());
 
-    // Start coords at 16, since 0-15 are used to hold data size
-    int bitsIdx = 0;
+    // Start coords at 32
+    size_t bitsIdx = 0;
     bitset<8> bits{};
-    for(int coordsIdx = 16; coordsIdx < numCoordsUsed; ++coordsIdx)
+    for(size_t coordsIdx = 32; coordsIdx < numCoordsUsed; ++coordsIdx)
     {
-        if(bitsIdx < 8)
+        if(bitsIdx < bits.size())
         {
             bits[bitsIdx] = img->getPixels()[coords.at(coordsIdx).y * img->getWidth() + coords.at(coordsIdx).x] & 1;
             bitsIdx++;
@@ -238,7 +248,7 @@ vector<char> decode(unique_ptr<Image> &img)
         else
         {
             bitsIdx = 0;
-            data.push_back(static_cast<char>(bits.to_ulong()));
+            data.push_back(static_cast<uint8_t>(bits.to_ulong()));
 
             // Don't skip a bit
             coordsIdx--;
@@ -268,10 +278,8 @@ int main(int argc, char** argv)
         // Get points
         vector<point> points = findMidpointPixels(img);
 
-        //cout << "Number of pixels available for data: " << points.size() << '\n';
-
         // Read in file to encode
-        vector<char> data = readFile(argv[3]);
+        vector<uint8_t> data = readFile(argv[3]);
         encode(img, data);
 
         writeImage(img, "encoded-image.png");
@@ -283,7 +291,7 @@ int main(int argc, char** argv)
         readImage(img, argv[2]);
 
         // Get decoded data and write to file
-        vector<char> decodedData = decode(img);
+        vector<uint8_t> decodedData = decode(img);
         writeFile(decodedData, "decoded-file");
     }
     else
