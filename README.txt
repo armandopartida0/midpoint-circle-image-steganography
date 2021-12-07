@@ -1,6 +1,9 @@
 Name: Armando Partida Sanabia
 Class: CPSC 4040
 
+External Libraries Used:
+OpenImageIO
+
 To encode a file:
 ./final-project -e <cover image name> <data file>
 
